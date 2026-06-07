@@ -1,0 +1,14 @@
+*{box-sizing:border-box;font-family:Arial,Helvetica,sans-serif}
+body{margin:0;background:#f7f7f9;color:#222}
+header{background:#0b5;display:flex;align-items:center;justify-content:space-between;padding:12px 20px}
+header h1{margin:0;font-size:18px}
+nav a{margin-left:12px;color:#063; text-decoration:none}
+main{padding:20px}
+.card{background:#fff;border-radius:6px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.form-group{margin-bottom:10px}
+.form-group label{display:block;font-size:14px;margin-bottom:4px}
+.form-group input, .form-group select{width:100%;padding:8px;border:1px solid #ddd;border-radius:4px}
+.btn{display:inline-block;padding:8px 12px;background:#0b5;color:#fff;border-radius:4px;text-decoration:none;border:none;cursor:pointer}
+.table{width:100%;border-collapse:collapse;margin-top:12px}
+.table th, .table td{padding:8px;border-bottom:1px solid #eee;text-align:left}
+.small{font-size:13px;color:#666}
