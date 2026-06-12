@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Programación de Viajes — LogiTrans Express</title>
+    <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <span class="navbar-brand">
+        <span class="brand-icon"></span> LogiTrans Express
+    </span>
+    <span class="navbar-spacer"></span>
+    <div class="navbar-user">
+        <strong id="nav-user"></strong>
+        <button class="btn btn-outline btn-sm" onclick="logout()">Cerrar sesión</button>
+    </div>
+</nav>
+
+<aside class="sidebar">
+    <nav>
+        <p class="sidebar-section">Menú principal</p>
+        <ul class="sidebar-nav">
+            <li><a href="dashboard.html">
+                <span class="nav-icon"></span> Dashboard</a></li>
+            <li><a href="conductores.html">
+                <span class="nav-icon"></span> Conductores</a></li>
+            <li><a href="vehiculos.html">
+                <span class="nav-icon"></span> Vehículos</a></li>
+            <li><a href="rutas.html">
+                <span class="nav-icon"></span> Rutas</a></li>
+            <li><a href="programacion.html" class="active">
+                <span class="nav-icon"></span> Programación</a></li>
+            <li><a href="viajes.html">
+                <span class="nav-icon"></span> Viajes</a></li>
+        </ul>
+    </nav>
+</aside>
+
+<main class="main-content">
+    <div id="alert-container"></div>
+
+    <div class="page-header">
+        <div>
+            <h2>Programación de Viajes</h2>
+            <p class="text-muted text-sm" style="margin-top:.2rem">
+                Asigna conductor, vehículo y ruta para programar salidas.
+                Solo se pueden asignar conductores y vehículos
+                <strong>disponibles</strong>.
+            </p>
+        </div>
+        <button id="btn-nueva" class="btn btn-primary">
+            + Programar viaje
+        </button>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">
+                Programación —
+                <span id="contador" class="text-muted" style="font-weight:400">cargando...</span>
+            </span>
+
+            <div style="display:flex; gap:.5rem; flex-wrap:wrap; align-items:center">
+                <input
+                    type="text"
+                    id="buscar"
+                    class="form-control"
+                    placeholder="Buscar conductor, vehículo, ruta..."
+                    style="max-width:240px"
+                >
+                <select id="filtro-estado" class="form-control" style="max-width:170px">
+                    <option value="">Todos los estados</option>
+                    <option value="programado">Programado</option>
+                    <option value="en_transito">En tránsito</option>
+                    <option value="retrasado">Retrasado</option>
+                    <option value="finalizado">Finalizado</option>
+                    <option value="cancelado">Cancelado</option>
+                </select>
+                <input
+                    type="date"
+                    id="filtro-fecha"
+                    class="form-control"
+                    style="max-width:160px"
+                    title="Filtrar por fecha de salida"
+                >
+                <button class="btn btn-outline btn-sm" onclick="cargarProgramacion()">
+                    ↻ Actualizar
+                </button>
+            </div>
+        </div>
+
+        <div class="relative">
+            <div id="loader"
+                 style="display:none; position:absolute; inset:0;
+                        background:rgba(255,255,255,.85); z-index:10;
+                        align-items:center; justify-content:center;">
+                <div class="spinner"></div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Ruta</th>
+                            <th>Conductor</th>
+                            <th>Vehículo</th>
+                            <th>Fecha / Hora salida</th>
+                            <th>Fecha llegada est.</th>
+                            <th>Estado</th>
+                            <th>Observaciones</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-prog">
+                        <tr>
+                            <td colspan="9" class="text-center text-muted">
+                                Cargando programación...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px;
+                padding:1rem 1.25rem; font-size:.85rem; color:#166534;">
+        ✅ <strong>Flujo recomendado:</strong>
+        Crear ruta en <a href="rutas.html">Rutas</a> →
+        Programar viaje aquí →
+        Iniciar viaje en <a href="viajes.html">Viajes</a> →
+        Registrar novedades → Finalizar viaje.
+    </div>
+</main>
+
+<div id="modal-prog" class="modal-overlay">
+    <div class="modal" style="max-width:660px">
+        <div class="modal-header">
+            <h3 id="modal-titulo">Programar Viaje</h3>
+            <button class="modal-close" onclick="cerrarModal()">×</button>
+        </div>
+
+        <form id="form-prog" novalidate>
+            <div class="modal-body">
+
+                <div class="form-group">
+                    <label for="f-ruta">
+                        Ruta <span class="required">*</span>
+                    </label>
+                    <select id="f-ruta" class="form-control" required>
+                        <option value="">— Cargando rutas... —</option>
+                    </select>
+                    <small class="text-muted">
+                        ¿No aparece la ruta?
+                        <a href="rutas.html" target="_blank">Crear nueva ruta</a>
+                    </small>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="f-conductor">
+                            Conductor <span class="required">*</span>
+                        </label>
+                        <select id="f-conductor" class="form-control" required>
+                            <option value="">— Cargando conductores... —</option>
+                        </select>
+                        <small class="text-muted">
+                            Solo se muestran conductores <strong>disponibles</strong>.
+                            Conductores inactivos no pueden ser asignados.
+                        </small>
+                    </div>
+                    <div class="form-group">
+                        <label for="f-vehiculo">
+                            Vehículo <span class="required">*</span>
+                        </label>
+                        <select id="f-vehiculo" class="form-control" required>
+                            <option value="">— Cargando vehículos... —</option>
+                        </select>
+                        <small class="text-muted">
+                            Solo se muestran vehículos <strong>disponibles</strong>.
+                            Vehículos en mantenimiento no pueden ser asignados.
+                        </small>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="f-fecha-salida">
+                            Fecha de salida <span class="required">*</span>
+                        </label>
+                        <input
+                            type="date"
+                            id="f-fecha-salida"
+                            class="form-control"
+                            required
+                        >
+                    </div>
+                    <div class="form-group">
+                        <label for="f-hora-salida">
+                            Hora de salida <span class="required">*</span>
+                        </label>
+                        <input
+                            type="time"
+                            id="f-hora-salida"
+                            class="form-control"
+                            required
+                        >
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="f-fecha-llegada">Fecha estimada de llegada</label>
+                    <input
+                        type="date"
+                        id="f-fecha-llegada"
+                        class="form-control"
+                    >
+                    <small class="text-muted">
+                        Debe ser igual o posterior a la fecha de salida.
+                    </small>
+                </div>
+
+                <div class="form-group">
+                    <label for="f-observaciones">Observaciones</label>
+                    <textarea
+                        id="f-observaciones"
+                        class="form-control"
+                        rows="3"
+                        placeholder="Instrucciones especiales, tipo de carga, contactos de emergencia..."
+                    ></textarea>
+                </div>
+
+                <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:6px;
+                            padding:.75rem 1rem; font-size:.82rem; color:#92400e;">
+                    ⚠️ <strong>Validaciones aplicadas:</strong>
+                    <ul style="margin:.4rem 0 0 1rem; line-height:1.8">
+                        <li>No se permite asignar conductores <strong>inactivos</strong>.</li>
+                        <li>No se permite asignar vehículos en <strong>mantenimiento</strong> o <strong>inactivos</strong>.</li>
+                        <li>No se permite asignar un conductor o vehículo que ya tenga un viaje activo.</li>
+                    </ul>
+                </div>
+
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="btn-cancelar" class="btn btn-outline">
+                    Cancelar
+                </button>
+                <button type="submit" id="btn-guardar" class="btn btn-primary">
+                    Programar viaje
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="assets/js/config.js"></script>
+<script src="assets/js/utils.js"></script>
+<script src="assets/js/programacion.js"></script>
+</body>
+</html>

@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rutas — LogiTrans Express</title>
+    <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <span class="navbar-brand">
+        <span class="brand-icon"></span> LogiTrans Express
+    </span>
+    <span class="navbar-spacer"></span>
+    <div class="navbar-user">
+        <strong id="nav-user"></strong>
+        <button class="btn btn-outline btn-sm" onclick="logout()">Cerrar sesión</button>
+    </div>
+</nav>
+
+<aside class="sidebar">
+    <nav>
+        <p class="sidebar-section">Menú principal</p>
+        <ul class="sidebar-nav">
+            <li><a href="dashboard.html">
+                <span class="nav-icon"></span> Dashboard</a></li>
+            <li><a href="conductores.html">
+                <span class="nav-icon"></span> Conductores</a></li>
+            <li><a href="vehiculos.html">
+                <span class="nav-icon"></span> Vehículos</a></li>
+            <li><a href="rutas.html" class="active">
+                <span class="nav-icon"></span> Rutas</a></li>
+            <li><a href="programacion.html">
+                <span class="nav-icon"></span> Programación</a></li>
+            <li><a href="viajes.html">
+                <span class="nav-icon"></span> Viajes</a></li>
+        </ul>
+    </nav>
+</aside>
+
+<main class="main-content">
+    <div id="alert-container"></div>
+
+    <div class="page-header">
+        <div>
+            <h2>Rutas</h2>
+            <p class="text-muted text-sm" style="margin-top:.2rem">
+                Gestiona las rutas de transporte entre ciudades.
+                <a href="programacion.html">¿Quieres programar un viaje?</a>
+            </p>
+        </div>
+        <button id="btn-nueva" class="btn btn-primary">
+            + Nueva ruta
+        </button>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">
+                Rutas registradas —
+                <span id="contador" class="text-muted" style="font-weight:400">cargando...</span>
+            </span>
+            <div style="display:flex; gap:.5rem; align-items:center; flex-wrap:wrap">
+                <input
+                    type="text"
+                    id="buscar"
+                    class="form-control"
+                    placeholder="Buscar por ciudad..."
+                    style="max-width:240px"
+                >
+                <button class="btn btn-outline btn-sm" onclick="cargarRutas()">
+                    ↻ Actualizar
+                </button>
+            </div>
+        </div>
+
+        <div class="relative">
+            <div id="loader"
+                 style="display:none; position:absolute; inset:0;
+                        background:rgba(255,255,255,.85); z-index:10;
+                        align-items:center; justify-content:center;">
+                <div class="spinner"></div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Ciudad origen</th>
+                            <th>Ciudad destino</th>
+                            <th>Distancia</th>
+                            <th>Tiempo estimado</th>
+                            <th>Observaciones</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-rutas">
+                        <tr>
+                            <td colspan="7" class="text-center text-muted">
+                                Cargando rutas...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px;
+                padding:1rem 1.25rem; font-size:.85rem; color:#1e40af;">
+        ℹ️ <strong>Consejo:</strong> Una vez creadas las rutas, dirígete a
+        <a href="programacion.html"><strong>Programación</strong></a>
+        para asignar conductor y vehículo a cada ruta y programar salidas.
+    </div>
+</main>
+
+<div id="modal-ruta" class="modal-overlay">
+    <div class="modal" style="max-width:540px">
+        <div class="modal-header">
+            <h3 id="modal-titulo">Nueva Ruta</h3>
+            <button class="modal-close" onclick="cerrarModal()">×</button>
+        </div>
+
+        <form id="form-ruta" novalidate>
+            <div class="modal-body">
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="f-origen">
+                            Ciudad de origen <span class="required">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            id="f-origen"
+                            class="form-control"
+                            placeholder="Ej: Bogotá"
+                            required
+                        >
+                    </div>
+                    <div class="form-group">
+                        <label for="f-destino">
+                            Ciudad de destino <span class="required">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            id="f-destino"
+                            class="form-control"
+                            placeholder="Ej: Medellín"
+                            required
+                        >
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="f-distancia">
+                            Distancia (km) <span class="required">*</span>
+                        </label>
+                        <input
+                            type="number"
+                            id="f-distancia"
+                            class="form-control"
+                            placeholder="Ej: 415"
+                            min="0.1"
+                            step="0.1"
+                            required
+                        >
+                    </div>
+                    <div class="form-group">
+                        <label for="f-tiempo">Tiempo estimado (horas)</label>
+                        <input
+                            type="number"
+                            id="f-tiempo"
+                            class="form-control"
+                            placeholder="Ej: 8.5"
+                            min="0"
+                            step="0.5"
+                        >
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="f-observaciones">Observaciones</label>
+                    <textarea
+                        id="f-observaciones"
+                        class="form-control"
+                        rows="3"
+                        placeholder="Descripción de la ruta, peajes, condiciones viales, restricciones..."
+                    ></textarea>
+                </div>
+
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="btn-cancelar" class="btn btn-outline">
+                    Cancelar
+                </button>
+                <button type="submit" id="btn-guardar" class="btn btn-primary">
+                    Guardar ruta
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="assets/js/config.js"></script>
+<script src="assets/js/utils.js"></script>
+<script src="assets/js/rutas.js"></script>
+</body>
+</html>

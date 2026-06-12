@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conductores — LogiTrans Express</title>
+    <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <span class="navbar-brand"><span class="brand-icon"></span> LogiTrans Express</span>
+    <span class="navbar-spacer"></span>
+    <div class="navbar-user">
+        <strong id="nav-user"></strong>
+        <button class="btn btn-outline btn-sm" onclick="logout()">Cerrar sesión</button>
+    </div>
+</nav>
+
+<aside class="sidebar">
+    <nav>
+        <p class="sidebar-section">Menú principal</p>
+        <ul class="sidebar-nav">
+            <li><a href="dashboard.html">
+                <span class="nav-icon"></span> Dashboard</a></li>
+            <li><a href="conductores.html" class="active">
+                <span class="nav-icon"></span> Conductores</a></li>
+            <li><a href="vehiculos.html">
+                <span class="nav-icon"></span> Vehículos</a></li>
+            <li><a href="rutas.html" >
+                <span class="nav-icon"></span> Rutas</a></li>
+            <li><a href="programacion.html">
+                <span class="nav-icon"></span> Programación</a></li>
+            <li><a href="viajes.html">
+                <span class="nav-icon"></span> Viajes</a></li>
+        </ul>
+    </nav>
+</aside>
+
+<main class="main-content">
+    <div id="alert-container"></div>
+
+    <div class="page-header">
+        <h2>Conductores</h2>
+        <button id="btn-nuevo" class="btn btn-primary">+ Nuevo conductor</button>
+    </div>
+
+    <div class="card">
+        <div class="toolbar">
+            <input type="text" id="buscar" class="form-control" placeholder="Buscar por nombre, documento, licencia...">
+            <select id="filtro-estado" class="form-control" style="max-width:180px">
+                <option value="">Todos los estados</option>
+                <option value="disponible">Disponible</option>
+                <option value="en_ruta">En ruta</option>
+                <option value="inactivo">Inactivo</option>
+            </select>
+            <button class="btn btn-outline btn-sm" onclick="cargarConductores()">Actualizar</button>
+        </div>
+
+        <div class="relative">
+            <div id="loader" style="display:none; position:absolute; inset:0; background:rgba(255,255,255,.8); z-index:10; align-items:center; justify-content:center;">
+                <div class="spinner"></div>
+            </div>
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Nombre</th>
+                            <th>Documento</th>
+                            <th>Teléfono</th>
+                            <th>Licencia</th>
+                            <th>Categoría</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-conductores">
+                        <tr><td colspan="8" class="text-center text-muted">Cargando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</main>
+
+<div id="modal-conductor" class="modal-overlay">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="modal-titulo">Nuevo Conductor</h3>
+            <button class="modal-close" onclick="cerrarModal()">×</button>
+        </div>
+        <form id="form-conductor" novalidate>
+            <div class="modal-body">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Nombres <span class="required">*</span></label>
+                        <input type="text" id="f-nombres" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Apellidos <span class="required">*</span></label>
+                        <input type="text" id="f-apellidos" class="form-control" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Documento <span class="required">*</span></label>
+                        <input type="text" id="f-documento" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Teléfono</label>
+                        <input type="text" id="f-telefono" class="form-control">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Correo electrónico</label>
+                    <input type="email" id="f-email" class="form-control">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>N.° Licencia <span class="required">*</span></label>
+                        <input type="text" id="f-licencia" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Categoría licencia</label>
+                        <select id="f-categoria" class="form-control">
+                            <option value="">— Seleccionar —</option>
+                            <option value="A1">A1</option>
+                            <option value="A2">A2</option>
+                            <option value="B1">B1</option>
+                            <option value="B2">B2</option>
+                            <option value="B3">B3</option>
+                            <option value="C1">C1</option>
+                            <option value="C2">C2</option>
+                            <option value="C3">C3</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Vencimiento licencia</label>
+                        <input type="date" id="f-vencimiento" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Estado</label>
+                        <select id="f-estado" class="form-control">
+                            <option value="disponible">Disponible</option>
+                            <option value="en_ruta">En ruta</option>
+                            <option value="inactivo">Inactivo</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="btn-cancelar" class="btn btn-outline">Cancelar</button>
+                <button type="submit" id="btn-guardar" class="btn btn-primary">Guardar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="assets/js/config.js"></script>
+<script src="assets/js/utils.js"></script>
+<script src="assets/js/conductores.js"></script>
+</body>
+</html>

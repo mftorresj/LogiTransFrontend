@@ -1,98 +1,189 @@
-async function renderConductores(){
-  show('app', `<section class="card"><h2>Conductores</h2>
-    <div style="margin-bottom:10px"><button class="btn" id="btn-nuevo-conductor">Crear conductor</button></div>
-    <div id="conductores-list">Cargando...</div></section>`);
-  document.getElementById('btn-nuevo-conductor').addEventListener('click', ()=> renderConductorForm());
-  try{
-    const res = await fetchWithAuth(CONFIG.conductores_url + '/conductores');
-    if(!res.ok){ document.getElementById('conductores-list').innerText = 'Error: ' + res.status; return; }
-    const data = await res.json();
-    const list = (data.data || data) || [];
-    if(list.length === 0){ document.getElementById('conductores-list').innerHTML = '<div class="small">No hay conductores</div>'; return; }
-    const rows = list.map(c => `
-      <tr>
-        <td>${c.id ?? ''}</td>
-        <td>${c.nombres ?? ''} ${c.apellidos ?? ''}</td>
-        <td>${c.documento ?? ''}</td>
-        <td>${c.numero_licencia ?? ''}</td>
-        <td class="small">${c.estado ?? ''}</td>
-        <td>
-            <button class="btn" data-id="${c.id}" data-action="edit">Editar</button>
-            <button class="btn" data-id="${c.id}" data-action="delete">Eliminar</button>
-        </td>
-      </tr>
-    `).join('');
-    document.getElementById('conductores-list').innerHTML = `
-      <table class="table"><thead><tr><th>ID</th><th>Nombre</th><th>Documento</th><th>Licencia</th><th>Estado</th><th>Acción</th></tr></thead><tbody>${rows}</tbody></table>
-    `;
-    document.querySelectorAll('#conductores-list button[data-action="edit"]').forEach(btn=>{
-      btn.addEventListener('click', async (e)=>{
-        const id = e.currentTarget.getAttribute('data-id');
-        try{
-          const r = await fetchWithAuth(CONFIG.conductores_url + '/conductores/' + id);
-          const d = await r.json();
-          renderConductorForm(d.data || d);
-        }catch(err){ alert('Error cargando conductor'); }
-      });
+let conductoresData = [];
+let editandoId = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+    requireAuth();
+    renderNavUser();
+    cargarConductores();
+
+    document.getElementById('btn-nuevo')?.addEventListener('click', abrirModalNuevo);
+    document.getElementById('form-conductor')?.addEventListener('submit', guardarConductor);
+    document.getElementById('btn-cancelar')?.addEventListener('click', cerrarModal);
+
+    document.getElementById('buscar')?.addEventListener('input',
+        debounce(e => filtrarConductores(e.target.value), 350)
+    );
+
+    document.getElementById('filtro-estado')?.addEventListener('change', e => {
+        const val = e.target.value;
+        const filtrados = val
+            ? conductoresData.filter(c => c.estado === val)
+            : conductoresData;
+        renderTabla(filtrados);
     });
-    document.querySelectorAll('#conductores-list button[data-action="delete"]').forEach(btn=>{
-      btn.addEventListener('click', async (e)=>{
-        const id = e.currentTarget.getAttribute('data-id');
-        if(!confirm('¿Estás seguro de que quieres eliminar este conductor?')) return;
-        try{
-          const res = await fetchWithAuth(CONFIG.conductores_url + '/conductores/' + id, { method: 'DELETE' });
-          const d = await res.json();
-          if(!res.ok) return alert(d.message || 'Error al eliminar');
-          alert('Conductor eliminado');
-          renderConductores();
-        }catch(err){ console.error(err); alert('Error en conexión'); }
-      });
-    });
-  }catch(e){ console.error(e); document.getElementById('conductores-list').innerText = 'Error de conexión'; }
+});
+
+async function cargarConductores() {
+    showLoader('loader', true);
+    const res = await Http.get(`${API.conductores}/conductores`);
+    showLoader('loader', false);
+
+    if (res.success) {
+        conductoresData = res.data || [];
+        renderTabla(conductoresData);
+    } else {
+        showAlert(res.message, 'error');
+    }
 }
 
-function renderConductorForm(conductor = {}){
-  const isEdit = !!conductor.id;
-  show('app', `
-    <section class="card">
-      <h2>${isEdit ? 'Editar' : 'Crear'} Conductor</h2>
-      <div class="form-group"><label>Nombres</label><input id="c_nombres" value="${conductor.nombres ?? ''}" /></div>
-      <div class="form-group"><label>Apellidos</label><input id="c_apellidos" value="${conductor.apellidos ?? ''}" /></div>
-      <div class="form-group"><label>Documento</label><input id="c_documento" value="${conductor.documento ?? ''}" /></div>
-      <div class="form-group"><label>Número licencia</label><input id="c_numero_licencia" value="${conductor.numero_licencia ?? ''}" /></div>
-      <div class="form-group"><label>Teléfono</label><input id="c_telefono" value="${conductor.telefono ?? ''}" /></div>
-      <div class="form-group"><label>Email</label><input id="c_email" value="${conductor.email ?? ''}" /></div>
-      <div class="form-group"><label>Categoría licencia</label><input id="c_categoria_licencia" value="${conductor.categoria_licencia ?? ''}" /></div>
-      <div class="form-group"><label>Fecha vencimiento licencia</label><input id="c_fecha_vencimiento_licencia" type="date" value="${conductor.fecha_vencimiento_licencia ?? ''}" /></div>
-      <div style="display:flex;gap:8px"><button class="btn" id="c_submit">Guardar</button><button class="btn" id="c_cancel">Cancelar</button></div>
-    </section>
-  `);
-  document.getElementById('c_cancel').addEventListener('click', ()=> renderConductores());
-  document.getElementById('c_submit').addEventListener('click', async ()=>{
-    const payload = {
-      nombres: document.getElementById('c_nombres').value.trim(),
-      apellidos: document.getElementById('c_apellidos').value.trim(),
-      documento: document.getElementById('c_documento').value.trim(),
-      numero_licencia: document.getElementById('c_numero_licencia').value.trim(),
-      telefono: document.getElementById('c_telefono').value.trim(),
-      email: document.getElementById('c_email').value.trim(),
-      categoria_licencia: document.getElementById('c_categoria_licencia').value.trim(),
-      fecha_vencimiento_licencia: document.getElementById('c_fecha_vencimiento_licencia').value
+function renderTabla(datos) {
+    const tbody = document.getElementById('tabla-conductores');
+    if (!tbody) return;
+
+    if (!datos.length) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No hay conductores registrados.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = datos.map(c => `
+        <tr>
+            <td>${c.id}</td>
+            <td><strong>${c.nombres} ${c.apellidos}</strong></td>
+            <td>${c.documento}</td>
+            <td>${c.telefono || '—'}</td>
+            <td>${c.numero_licencia}</td>
+            <td>${c.categoria_licencia || '—'}</td>
+            <td>${estadoBadge(c.estado)}</td>
+            <td class="actions">
+                <button class="btn btn-sm btn-primary" onclick="editarConductor(${c.id})">Editar</button>
+                <button class="btn btn-sm btn-secondary" onclick="cambiarEstado(${c.id}, '${c.estado}')">Estado</button>
+                <button class="btn btn-sm btn-danger" onclick="eliminarConductor(${c.id})">Eliminar</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function filtrarConductores(texto) {
+    const t = texto.toLowerCase();
+    const filtrados = conductoresData.filter(c =>
+        c.nombres.toLowerCase().includes(t) ||
+        c.apellidos.toLowerCase().includes(t) ||
+        c.documento.toLowerCase().includes(t) ||
+        (c.email || '').toLowerCase().includes(t) ||
+        c.numero_licencia.toLowerCase().includes(t)
+    );
+    renderTabla(filtrados);
+}
+
+function abrirModalNuevo() {
+    editandoId = null;
+    document.getElementById('modal-titulo').textContent = 'Nuevo Conductor';
+    document.getElementById('form-conductor').reset();
+    abrirModal();
+}
+
+async function editarConductor(id) {
+    const res = await Http.get(`${API.conductores}/conductores/${id}`);
+    if (!res.success) { showAlert(res.message, 'error'); return; }
+
+    const c = res.data;
+    editandoId = id;
+    document.getElementById('modal-titulo').textContent = 'Editar Conductor';
+
+    document.getElementById('f-nombres').value     = c.nombres     || '';
+    document.getElementById('f-apellidos').value   = c.apellidos   || '';
+    document.getElementById('f-documento').value   = c.documento   || '';
+    document.getElementById('f-telefono').value    = c.telefono    || '';
+    document.getElementById('f-email').value       = c.email       || '';
+    document.getElementById('f-licencia').value    = c.numero_licencia || '';
+    document.getElementById('f-categoria').value   = c.categoria_licencia || '';
+    document.getElementById('f-vencimiento').value = c.fecha_vencimiento_licencia
+        ? c.fecha_vencimiento_licencia.split('T')[0] : '';
+    document.getElementById('f-estado').value      = c.estado      || 'disponible';
+
+    abrirModal();
+}
+
+async function guardarConductor(e) {
+    e.preventDefault();
+
+    const body = {
+        nombres:                    document.getElementById('f-nombres').value.trim(),
+        apellidos:                  document.getElementById('f-apellidos').value.trim(),
+        documento:                  document.getElementById('f-documento').value.trim(),
+        telefono:                   document.getElementById('f-telefono').value.trim(),
+        email:                      document.getElementById('f-email').value.trim(),
+        numero_licencia:            document.getElementById('f-licencia').value.trim(),
+        categoria_licencia:         document.getElementById('f-categoria').value.trim(),
+        fecha_vencimiento_licencia: document.getElementById('f-vencimiento').value || null,
+        estado:                     document.getElementById('f-estado').value,
     };
-    if(!payload.nombres || !payload.apellidos || !payload.documento || !payload.numero_licencia){ return alert('Completa los campos obligatorios'); }
-    try{
-      if(isEdit){
-        const res = await fetchWithAuth(CONFIG.conductores_url + '/conductores/' + conductor.id, { method: 'PUT', body: JSON.stringify(payload) });
-        const d = await res.json();
-        if(!res.ok) return alert(d.message || 'Error al actualizar');
-        alert('Conductor actualizado');
-      }else{
-        const res = await fetchWithAuth(CONFIG.conductores_url + '/conductores', { method: 'POST', body: JSON.stringify(payload) });
-        const d = await res.json();
-        if(!res.ok) return alert(d.message || 'Error al crear');
-        alert('Conductor creado');
-      }
-      renderConductores();
-    }catch(err){ console.error(err); alert('Error en conexión'); }
-  });
+
+    const btn = document.getElementById('btn-guardar');
+    btn.disabled = true;
+
+    let res;
+    if (editandoId) {
+        res = await Http.put(`${API.conductores}/conductores/${editandoId}`, body);
+    } else {
+        res = await Http.post(`${API.conductores}/conductores`, body);
+    }
+
+    btn.disabled = false;
+
+    if (res.success) {
+        showAlert(res.message, 'success');
+        cerrarModal();
+        cargarConductores();
+    } else {
+        showAlert(res.message, 'error');
+    }
+}
+
+async function cambiarEstado(id, estadoActual) {
+    const estados = ['disponible', 'en_ruta', 'inactivo'];
+    const opciones = estados.filter(e => e !== estadoActual);
+    const nuevo = prompt(
+        `Estado actual: ${estadoActual}\nNuevo estado (${opciones.join(' / ')}):`
+    );
+
+    if (!nuevo || !estados.includes(nuevo.trim())) {
+        if (nuevo !== null) showAlert('Estado no válido.', 'error');
+        return;
+    }
+
+    const res = await Http.patch(`${API.conductores}/conductores/${id}/estado`, { estado: nuevo.trim() });
+    if (res.success) {
+        showAlert(res.message, 'success');
+        cargarConductores();
+    } else {
+        showAlert(res.message, 'error');
+    }
+}
+
+async function eliminarConductor(id) {
+    if (!confirmar('¿Eliminar este conductor? Esta acción no se puede deshacer.')) return;
+
+    const res = await Http.delete(`${API.conductores}/conductores/${id}`);
+    if (res.success) {
+        showAlert(res.message, 'success');
+        cargarConductores();
+    } else {
+        showAlert(res.message, 'error');
+    }
+}
+
+function abrirModal() {
+    document.getElementById('modal-conductor').classList.add('active');
+}
+
+function cerrarModal() {
+    document.getElementById('modal-conductor').classList.remove('active');
+    editandoId = null;
+}
+
+function renderNavUser() {
+    const user = UserSession.get();
+    const el = document.getElementById('nav-user');
+    if (el && user) el.textContent = user.nombre || user.email;
 }

@@ -1,95 +1,178 @@
-async function renderVehiculos(){
-  show('app', `<section class="card"><h2>Vehículos</h2>
-    <div style="margin-bottom:10px"><button class="btn" id="btn-nuevo-vehiculo">Crear vehículo</button></div>
-    <div id="vehiculos-list">Cargando...</div></section>`);
-  document.getElementById('btn-nuevo-vehiculo').addEventListener('click', ()=> renderVehiculoForm());
-  try{
-    const res = await fetchWithAuth(CONFIG.vehiculos_url + '/vehiculos');
-    if(!res.ok){ document.getElementById('vehiculos-list').innerText = 'Error: ' + res.status; return; }
-    const data = await res.json();
-    const list = (data.data || data) || [];
-    if(list.length === 0){ document.getElementById('vehiculos-list').innerHTML = '<div class="small">No hay vehículos</div>'; return; }
-    const rows = list.map(v => `
-      <tr>
-        <td>${v.id ?? ''}</td>
-        <td>${v.placa ?? ''}</td>
-        <td>${v.tipo ?? ''}</td>
-        <td>${v.capacidad_carga ?? ''}</td>
-        <td class="small">${v.estado ?? ''}</td>
-        <td>
-            <button class="btn" data-id="${v.id}" data-action="edit">Editar</button>
-            <button class="btn" data-id="${v.id}" data-action="delete">Eliminar</button>
-        </td>
-      </tr>
-    `).join('');
-    document.getElementById('vehiculos-list').innerHTML = `
-      <table class="table"><thead><tr><th>ID</th><th>Placa</th><th>Tipo</th><th>Capacidad</th><th>Estado</th><th>Acción</th></tr></thead><tbody>${rows}</tbody></table>
-    `;
-    document.querySelectorAll('#vehiculos-list button[data-action="edit"]').forEach(btn=>{
-      btn.addEventListener('click', async (e)=>{
-        const id = e.currentTarget.getAttribute('data-id');
-        try{
-          const r = await fetchWithAuth(CONFIG.vehiculos_url + '/vehiculos/' + id);
-          const d = await r.json();
-          renderVehiculoForm(d.data || d);
-        }catch(err){ alert('Error cargando vehículo'); }
-      });
+let vehiculosData = [];
+let editandoId = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+    requireAuth();
+    renderNavUser();
+    cargarVehiculos();
+
+    document.getElementById('btn-nuevo')?.addEventListener('click', abrirModalNuevo);
+    document.getElementById('form-vehiculo')?.addEventListener('submit', guardarVehiculo);
+    document.getElementById('btn-cancelar')?.addEventListener('click', cerrarModal);
+
+    document.getElementById('buscar')?.addEventListener('input',
+        debounce(e => filtrarVehiculos(e.target.value), 350)
+    );
+
+    document.getElementById('filtro-estado')?.addEventListener('change', e => {
+        const val = e.target.value;
+        const filtrados = val ? vehiculosData.filter(v => v.estado === val) : vehiculosData;
+        renderTabla(filtrados);
     });
-    document.querySelectorAll('#vehiculos-list button[data-action="delete"]').forEach(btn=>{
-      btn.addEventListener('click', async (e)=>{
-        const id = e.currentTarget.getAttribute('data-id');
-        if(!confirm('¿Estás seguro de que quieres eliminar este vehículo?')) return;
-        try{
-          const res = await fetchWithAuth(CONFIG.vehiculos_url + '/vehiculos/' + id, { method: 'DELETE' });
-          const d = await res.json();
-          if(!res.ok) return alert(d.message || 'Error al eliminar');
-          alert('Vehículo eliminado');
-          renderVehiculos();
-        }catch(err){ console.error(err); alert('Error en conexión'); }
-      });
+
+    document.getElementById('filtro-tipo')?.addEventListener('change', e => {
+        const val = e.target.value;
+        const filtrados = val ? vehiculosData.filter(v => v.tipo === val) : vehiculosData;
+        renderTabla(filtrados);
     });
-  }catch(e){ console.error(e); document.getElementById('vehiculos-list').innerText = 'Error de conexión'; }
+});
+
+async function cargarVehiculos() {
+    showLoader('loader', true);
+    const res = await Http.get(`${API.vehiculos}/vehiculos`);
+    showLoader('loader', false);
+
+    if (res.success) {
+        vehiculosData = res.data || [];
+        renderTabla(vehiculosData);
+    } else {
+        showAlert(res.message, 'error');
+    }
 }
 
-function renderVehiculoForm(vehiculo = {}){
-  const isEdit = !!vehiculo.id;
-  show('app', `
-    <section class="card">
-      <h2>${isEdit ? 'Editar' : 'Crear'} Vehículo</h2>
-      <div class="form-group"><label>Placa</label><input id="v_placa" value="${vehiculo.placa ?? ''}" /></div>
-      <div class="form-group"><label>Tipo</label><input id="v_tipo" value="${vehiculo.tipo ?? ''}" /></div>
-      <div class="form-group"><label>Capacidad carga</label><input id="v_capacidad_carga" type="number" value="${vehiculo.capacidad_carga ?? ''}" /></div>
-      <div class="form-group"><label>Marca</label><input id="v_marca" value="${vehiculo.marca ?? ''}" /></div>
-      <div class="form-group"><label>Modelo</label><input id="v_modelo" value="${vehiculo.modelo ?? ''}" /></div>
-      <div class="form-group"><label>Estado</label><select id="v_estado"><option value="disponible">disponible</option><option value="en_ruta">en_ruta</option><option value="mantenimiento">mantenimiento</option><option value="inactivo">inactivo</option></select></div>
-      <div style="display:flex;gap:8px"><button class="btn" id="v_submit">Guardar</button><button class="btn" id="v_cancel">Cancelar</button></div>
-    </section>
-  `);
-  if(vehiculo.estado) document.getElementById('v_estado').value = vehiculo.estado;
-  document.getElementById('v_cancel').addEventListener('click', ()=> renderVehiculos());
-  document.getElementById('v_submit').addEventListener('click', async ()=>{
-    const payload = {
-      placa: document.getElementById('v_placa').value.trim(),
-      tipo: document.getElementById('v_tipo').value.trim(),
-      capacidad_carga: Number(document.getElementById('v_capacidad_carga').value) || 0,
-      marca: document.getElementById('v_marca').value.trim(),
-      modelo: document.getElementById('v_modelo').value.trim(),
-      estado: document.getElementById('v_estado').value
+function renderTabla(datos) {
+    const tbody = document.getElementById('tabla-vehiculos');
+    if (!tbody) return;
+
+    if (!datos.length) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No hay vehículos registrados.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = datos.map(v => `
+        <tr>
+            <td>${v.id}</td>
+            <td><strong>${v.placa}</strong></td>
+            <td>${v.tipo}</td>
+            <td>${v.marca} ${v.modelo}</td>
+            <td>${v.capacidad_carga} ton</td>
+            <td>${estadoBadge(v.estado)}</td>
+            <td class="actions">
+                <button class="btn btn-sm btn-primary" onclick="editarVehiculo(${v.id})">Editar</button>
+                <button class="btn btn-sm btn-secondary" onclick="cambiarEstado(${v.id}, '${v.estado}')">Estado</button>
+                <button class="btn btn-sm btn-danger" onclick="eliminarVehiculo(${v.id})">Eliminar</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function filtrarVehiculos(texto) {
+    const t = texto.toLowerCase();
+    const filtrados = vehiculosData.filter(v =>
+        v.placa.toLowerCase().includes(t) ||
+        v.marca.toLowerCase().includes(t) ||
+        v.modelo.toLowerCase().includes(t) ||
+        v.tipo.toLowerCase().includes(t)
+    );
+    renderTabla(filtrados);
+}
+
+function abrirModalNuevo() {
+    editandoId = null;
+    document.getElementById('modal-titulo').textContent = 'Nuevo Vehículo';
+    document.getElementById('form-vehiculo').reset();
+    abrirModal();
+}
+
+async function editarVehiculo(id) {
+    const res = await Http.get(`${API.vehiculos}/vehiculos/${id}`);
+    if (!res.success) { showAlert(res.message, 'error'); return; }
+
+    const v = res.data;
+    editandoId = id;
+    document.getElementById('modal-titulo').textContent = 'Editar Vehículo';
+
+    document.getElementById('f-placa').value    = v.placa    || '';
+    document.getElementById('f-tipo').value     = v.tipo     || '';
+    document.getElementById('f-capacidad').value= v.capacidad_carga || '';
+    document.getElementById('f-marca').value    = v.marca    || '';
+    document.getElementById('f-modelo').value   = v.modelo   || '';
+    document.getElementById('f-estado').value   = v.estado   || 'disponible';
+
+    abrirModal();
+}
+
+async function guardarVehiculo(e) {
+    e.preventDefault();
+
+    const capacidad = parseFloat(document.getElementById('f-capacidad').value);
+    if (isNaN(capacidad) || capacidad <= 0) {
+        showAlert('La capacidad debe ser un número mayor a cero.', 'error');
+        return;
+    }
+
+    const body = {
+        placa:          document.getElementById('f-placa').value.trim().toUpperCase(),
+        tipo:           document.getElementById('f-tipo').value,
+        capacidad_carga: capacidad,
+        marca:          document.getElementById('f-marca').value.trim(),
+        modelo:         document.getElementById('f-modelo').value.trim(),
+        estado:         document.getElementById('f-estado').value,
     };
-    if(!payload.placa || payload.capacidad_carga <= 0){ return alert('Placa y capacidad válidas son obligatorias'); }
-    try{
-      if(isEdit){
-        const res = await fetchWithAuth(CONFIG.vehiculos_url + '/vehiculos/' + vehiculo.id, { method: 'PUT', body: JSON.stringify(payload) });
-        const d = await res.json();
-        if(!res.ok) return alert(d.message || 'Error al actualizar');
-        alert('Vehículo actualizado');
-      }else{
-        const res = await fetchWithAuth(CONFIG.vehiculos_url + '/vehiculos', { method: 'POST', body: JSON.stringify(payload) });
-        const d = await res.json();
-        if(!res.ok) return alert(d.message || 'Error al crear');
-        alert('Vehículo creado');
-      }
-      renderVehiculos();
-    }catch(err){ console.error(err); alert('Error en conexión'); }
-  });
+
+    const btn = document.getElementById('btn-guardar');
+    btn.disabled = true;
+
+    const res = editandoId
+        ? await Http.put(`${API.vehiculos}/vehiculos/${editandoId}`, body)
+        : await Http.post(`${API.vehiculos}/vehiculos`, body);
+
+    btn.disabled = false;
+
+    if (res.success) {
+        showAlert(res.message, 'success');
+        cerrarModal();
+        cargarVehiculos();
+    } else {
+        showAlert(res.message, 'error');
+    }
+}
+
+async function cambiarEstado(id, estadoActual) {
+    const estados = ['disponible', 'en_ruta', 'mantenimiento', 'inactivo'];
+    const opciones = estados.filter(e => e !== estadoActual);
+    const nuevo = prompt(`Estado actual: ${estadoActual}\nNuevo estado (${opciones.join(' / ')}):`);
+
+    if (!nuevo || !estados.includes(nuevo.trim())) {
+        if (nuevo !== null) showAlert('Estado no válido.', 'error');
+        return;
+    }
+
+    const res = await Http.patch(`${API.vehiculos}/vehiculos/${id}/estado`, { estado: nuevo.trim() });
+    if (res.success) {
+        showAlert(res.message, 'success');
+        cargarVehiculos();
+    } else {
+        showAlert(res.message, 'error');
+    }
+}
+
+async function eliminarVehiculo(id) {
+    if (!confirmar('¿Eliminar este vehículo?')) return;
+
+    const res = await Http.delete(`${API.vehiculos}/vehiculos/${id}`);
+    if (res.success) {
+        showAlert(res.message, 'success');
+        cargarVehiculos();
+    } else {
+        showAlert(res.message, 'error');
+    }
+}
+
+function abrirModal() { document.getElementById('modal-vehiculo').classList.add('active'); }
+function cerrarModal() { document.getElementById('modal-vehiculo').classList.remove('active'); editandoId = null; }
+function renderNavUser() {
+    const user = UserSession.get();
+    const el = document.getElementById('nav-user');
+    if (el && user) el.textContent = user.nombre || user.email;
 }

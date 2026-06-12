@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Viajes — LogiTrans Express</title>
+    <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <span class="navbar-brand">
+        <span class="brand-icon"></span> LogiTrans Express
+    </span>
+    <span class="navbar-spacer"></span>
+    <div class="navbar-user">
+        <strong id="nav-user"></strong>
+        <button class="btn btn-outline btn-sm" onclick="logout()">Cerrar sesión</button>
+    </div>
+</nav>
+
+<aside class="sidebar">
+    <nav>
+        <p class="sidebar-section">Menú principal</p>
+        <ul class="sidebar-nav">
+            <li><a href="dashboard.html">
+                <span class="nav-icon"></span> Dashboard</a></li>
+            <li><a href="conductores.html">
+                <span class="nav-icon"></span> Conductores</a></li>
+            <li><a href="vehiculos.html">
+                <span class="nav-icon"></span> Vehículos</a></li>
+            <li><a href="rutas.html">
+                <span class="nav-icon"></span> Rutas</a></li>
+            <li><a href="programacion.html">
+                <span class="nav-icon"></span> Programación</a></li>
+            <li><a href="viajes.html" class="active">
+                <span class="nav-icon"></span> Viajes</a></li>
+        </ul>
+    </nav>
+</aside>
+
+<main class="main-content">
+    <div id="alert-container"></div>
+
+    <div class="page-header">
+        <div>
+            <h2>Control de Viajes</h2>
+            <p class="text-muted text-sm" style="margin-top:.2rem">
+                Inicia viajes, registra novedades y consulta el seguimiento operativo.
+                Los viajes deben estar primero en
+                <a href="programacion.html">Programación</a>.
+            </p>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="cargarViajes()">
+            ↻ Actualizar
+        </button>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">
+                Viajes —
+                <span id="contador" class="text-muted" style="font-weight:400">cargando...</span>
+            </span>
+            <div style="display:flex; gap:.5rem; flex-wrap:wrap; align-items:center">
+                <input
+                    type="text"
+                    id="buscar"
+                    class="form-control"
+                    placeholder="Buscar por ID, conductor, vehículo..."
+                    style="max-width:260px"
+                >
+                <select id="filtro-estado" class="form-control" style="max-width:170px">
+                    <option value="">Todos los estados</option>
+                    <option value="programado">Programado</option>
+                    <option value="en_transito">En tránsito</option>
+                    <option value="retrasado">Retrasado</option>
+                    <option value="finalizado">Finalizado</option>
+                    <option value="cancelado">Cancelado</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="relative">
+            <div id="loader"
+                 style="display:none; position:absolute; inset:0;
+                        background:rgba(255,255,255,.85); z-index:10;
+                        align-items:center; justify-content:center;">
+                <div class="spinner"></div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Programación</th>
+                            <th>Conductor ID</th>
+                            <th>Vehículo ID</th>
+                            <th>Estado</th>
+                            <th>Fecha inicio</th>
+                            <th>Fecha fin</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-viajes">
+                        <tr>
+                            <td colspan="8" class="text-center text-muted">
+                                Cargando viajes...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:8px;
+                padding:1rem 1.25rem; font-size:.85rem; color:#92400e;">
+        ⚠️ <strong>Flujo de estados:</strong>
+        <strong>Programado</strong> → (Iniciar) →
+        <strong>En tránsito</strong> → (Novedad de retraso) →
+        <strong>Retrasado</strong> → (Finalizar) →
+        <strong>Finalizado</strong>.
+        Cualquier viaje no finalizado puede ser <strong>Cancelado</strong>.
+    </div>
+</main>
+
+<div 
+    id="panel-seguimiento" class="seguimiento-panel">
+</div>
+
+<div id="modal-novedad" class="modal-overlay">
+    <div class="modal" style="max-width:500px">
+        <div class="modal-header">
+            <h3 id="titulo-modal-novedad">Registrar novedad</h3>
+            <button class="modal-close" onclick="cerrarModalNovedad()">×</button>
+        </div>
+        <form id="form-novedad" novalidate>
+            <div class="modal-body">
+
+                <div class="form-group">
+                    <label for="f-tipo-novedad">
+                        Tipo de novedad <span class="required">*</span>
+                    </label>
+                    <select id="f-tipo-novedad" class="form-control" required>
+                        <option value="observacion">Observación general</option>
+                        <option value="retraso">Retraso</option>
+                        <option value="incidente">Incidente</option>
+                        <option value="cambio_operativo">Cambio operativo</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="f-desc-novedad">
+                        Descripción <span class="required">*</span>
+                    </label>
+                    <textarea
+                        id="f-desc-novedad"
+                        class="form-control"
+                        rows="4"
+                        placeholder="Describe detalladamente la novedad: qué ocurrió, dónde, a qué hora..."
+                        required
+                    ></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="f-registrado-por">Registrado por</label>
+                    <input
+                        type="text"
+                        id="f-registrado-por"
+                        class="form-control"
+                        placeholder="Nombre del operador o conductor"
+                    >
+                </div>
+
+                <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:6px;
+                            padding:.75rem 1rem; font-size:.82rem; color:#991b1b;">
+                    ⚠️ Si el tipo es <strong>"Retraso"</strong>, el estado del viaje
+                    cambiará automáticamente de
+                    <em>En tránsito</em> → <strong>Retrasado</strong>.
+                </div>
+
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline"
+                        onclick="cerrarModalNovedad()">
+                    Cancelar
+                </button>
+                <button type="submit" id="btn-guardar-novedad" class="btn btn-danger">
+                    Registrar novedad
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="modal-finalizar" class="modal-overlay">
+    <div class="modal" style="max-width:440px">
+        <div class="modal-header">
+            <h3>Finalizar viaje</h3>
+            <button class="modal-close" onclick="cerrarModalFinalizar()">×</button>
+        </div>
+        <div class="modal-body">
+            <p>¿Confirmas que el viaje <strong id="lbl-viaje-finalizar"></strong>
+               ha llegado a destino y deseas marcarlo como <strong>Finalizado</strong>?</p>
+            <div class="form-group" style="margin-top:1rem">
+                <label for="f-obs-finalizar">Observaciones de cierre (opcional)</label>
+                <textarea
+                    id="f-obs-finalizar"
+                    class="form-control"
+                    rows="3"
+                    placeholder="Hora de llegada, condiciones, incidencias al cierre..."
+                ></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="cerrarModalFinalizar()">Cancelar</button>
+            <button id="btn-confirmar-finalizar" class="btn btn-success">
+                ✅ Confirmar finalización
+            </button>
+        </div>
+    </div>
+</div>
+
+<script src="assets/js/config.js"></script>
+<script src="assets/js/utils.js"></script>
+<script src="assets/js/viajes.js"></script>
+</body>
+</html>

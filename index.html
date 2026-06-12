@@ -1,33 +1,58 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>LogiTrans Frontend</title>
-  <link rel="stylesheet" href="assets/css/styles.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LogiTrans Express — Iniciar sesión</title>
+    <link rel="stylesheet" href="assets/css/styles.css">
 </head>
-<body>
-  <header>
-    <h1>LogiTrans Express</h1>
-    <nav>
-      <a href="#" id="nav-login">Login</a>
-      <a href="#" id="nav-conductores" style="display:none">Conductores</a>
-      <a href="#" id="nav-rutas" style="display:none">Rutas</a>
-      <a href="#" id="nav-programacion" style="display:none">Programación</a>
-      <a href="#" id="nav-viajes" style="display:none">Viajes</a>
-      <a href="#" id="nav-vehiculos" style="display:none">Vehículos</a>
-      <a href="#" id="nav-logout" style="display:none">Logout</a>
-    </nav>
-  </header>
-  <main id="app">
-    <!-- Contenido dinámico -->
-  </main>
-  <script src="assets/js/app.js"></script>
-  <script src="assets/js/auth.js"></script>
-  <script src="assets/js/conductores.js"></script>
-  <script src="assets/js/vehiculos.js"></script>
-  <script src="assets/js/rutas.js"></script>
-  <script src="assets/js/programacion.js"></script>
-  <script src="assets/js/viajes.js"></script>
+<body class="login-page">
+
+<div class="login-card">
+    <div class="login-logo">
+        <h1>LogiTrans Express</h1>
+        <p>Sistema de Control de Rutas y Transporte</p>
+    </div>
+
+    <div id="alert-container"></div>
+
+    <form id="login-form" novalidate>
+        <div class="form-group">
+            <label for="username">Usuario o correo electrónico <span class="required">*</span></label>
+            <input
+                type="text"
+                id="username"
+                class="form-control"
+                placeholder="admin"
+                autocomplete="username"
+                required
+            >
+        </div>
+
+        <div class="form-group">
+            <label for="password">Contraseña <span class="required">*</span></label>
+            <input
+                type="password"
+                id="password"
+                class="form-control"
+                placeholder="••••••••"
+                autocomplete="current-password"
+                required
+            >
+        </div>
+
+        <button type="submit" id="btn-login" class="btn btn-primary btn-block btn-lg" style="margin-top:.5rem">
+            Ingresar
+        </button>
+    </form>
+
+    <p class="text-center text-muted text-sm mt-2">
+        LogiTrans Express &copy; 2025
+    </p>
+</div>
+
+<script src="assets/js/config.js"></script>
+<script src="assets/js/utils.js"></script>
+<script src="assets/js/auth.js"></script>
 </body>
 </html>
