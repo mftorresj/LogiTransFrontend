@@ -1,4 +1,7 @@
-let viajesData = [];
+let viajesData        = [];
+let _conductoresMap   = {};
+let _vehiculosMap     = {};
+let _programacionesMap = {};
 
 document.addEventListener('DOMContentLoaded', () => {
     requireAuth();
@@ -23,15 +26,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function cargarViajes() {
     showLoader('loader', true);
-    const res = await Http.get(`${API.viajes}/viajes`);
+
+    const [vRes, cRes, veRes, pRes] = await Promise.all([
+        Http.get(`${API.viajes}/viajes`),
+        Http.get(`${API.conductores}/conductores`),
+        Http.get(`${API.vehiculos}/vehiculos`),
+        Http.get(`${API.rutas}/programacion`)
+    ]);
+
     showLoader('loader', false);
 
-    if (res.success) {
-        viajesData = res.data || [];
+    if (cRes.success) {
+        (cRes.data || []).forEach(c => {
+            _conductoresMap[c.id] = `${c.nombres} ${c.apellidos}`;
+        });
+    }
+
+    if (veRes.success) {
+        (veRes.data || []).forEach(v => {
+            _vehiculosMap[v.id] = `${v.placa} — ${v.marca}`;
+        });
+    }
+
+    if (pRes.success) {
+        (pRes.data || []).forEach(p => {
+            _programacionesMap[p.id] = p;
+        });
+    }
+
+    if (vRes.success) {
+        viajesData = vRes.data || [];
         renderTabla(viajesData);
     } else {
-        showAlert(res.message, 'error');
+        showAlert(vRes.message, 'error');
     }
+}
+
+function resolverNombres(v) {
+    const prog      = _programacionesMap[v.programacion_viaje_id] ?? {};
+    const conductor = _conductoresMap[prog.conductor_id] ?? `Conductor #${prog.conductor_id ?? '?'}`;
+    const vehiculo  = _vehiculosMap[prog.vehiculo_id]   ?? `Vehículo #${prog.vehiculo_id   ?? '?'}`;
+    return { prog, conductor, vehiculo };
 }
 
 function renderTabla(datos) {
@@ -43,18 +78,21 @@ function renderTabla(datos) {
         return;
     }
 
-    tbody.innerHTML = datos.map(v => `
-        <tr>
-            <td>${v.id}</td>
-            <td>${v.programacion_id}</td>
-            <td>${v.conductor_id}</td>
-            <td>${v.vehiculo_id}</td>
-            <td>${estadoBadge(v.estado)}</td>
-            <td>${formatDateTime(v.fecha_inicio)}</td>
-            <td>${formatDateTime(v.fecha_fin)}</td>
-            <td class="actions">${accionesViaje(v)}</td>
-        </tr>
-    `).join('');
+    tbody.innerHTML = datos.map(v => {
+        const { prog, conductor, vehiculo } = resolverNombres(v);
+        return `
+            <tr>
+                <td>${v.id}</td>
+                <td>${prog.id ?? v.programacion_viaje_id ?? '—'}</td>
+                <td>${conductor}</td>
+                <td>${vehiculo}</td>
+                <td>${estadoBadge(v.estado)}</td>
+                <td>${formatDateTime(v.fecha_inicio)}</td>
+                <td>${formatDateTime(v.fecha_fin)}</td>
+                <td class="actions">${accionesViaje(v)}</td>
+            </tr>
+        `;
+    }).join('');
 }
 
 function accionesViaje(v) {
@@ -80,12 +118,15 @@ function accionesViaje(v) {
 
 function filtrarViajes(texto) {
     const t = texto.toLowerCase();
-    const filtrados = viajesData.filter(v =>
-        String(v.id).includes(t) ||
-        String(v.conductor_id).includes(t) ||
-        String(v.vehiculo_id).includes(t) ||
-        v.estado.toLowerCase().includes(t)
-    );
+    const filtrados = viajesData.filter(v => {
+        const { conductor, vehiculo } = resolverNombres(v);
+        return (
+            String(v.id).includes(t) ||
+            conductor.toLowerCase().includes(t) ||
+            vehiculo.toLowerCase().includes(t) ||
+            v.estado.toLowerCase().includes(t)
+        );
+    });
     renderTabla(filtrados);
 }
 
@@ -103,7 +144,7 @@ async function iniciarViaje(id) {
 
 async function finalizarViaje(id) {
     const obs = prompt('Observaciones de cierre (opcional):') || '';
-    if (obs === null) return; // Canceló el prompt
+    if (obs === null) return;
 
     const res = await Http.post(`${API.viajes}/viajes/${id}/finalizar`, { observaciones: obs });
     if (res.success) {
@@ -132,6 +173,11 @@ function abrirModalNovedad(id) {
     viajeNovedad = id;
     document.getElementById('form-novedad').reset();
     document.getElementById('modal-novedad').classList.add('active');
+}
+
+function cerrarModalNovedad() {
+    document.getElementById('modal-novedad').classList.remove('active');
+    viajeNovedad = null;
 }
 
 async function guardarNovedad(e) {
@@ -172,6 +218,7 @@ async function verSeguimiento(id) {
     }
 
     const { viaje, novedades, resumen } = res.data;
+    const { prog, conductor, vehiculo } = resolverNombres(viaje);
 
     const panel = document.getElementById('panel-seguimiento');
     if (!panel) return;
@@ -184,11 +231,11 @@ async function verSeguimiento(id) {
         <div class="seguimiento-info">
             <div class="info-grid">
                 <div><label>Estado</label><div>${estadoBadge(viaje.estado)}</div></div>
-                <div><label>Conductor ID</label><div>${viaje.conductor_id}</div></div>
-                <div><label>Vehículo ID</label><div>${viaje.vehiculo_id}</div></div>
+                <div><label>Conductor</label><div>${conductor}</div></div>
+                <div><label>Vehículo</label><div>${vehiculo}</div></div>
                 <div><label>Inicio</label><div>${formatDateTime(viaje.fecha_inicio)}</div></div>
                 <div><label>Fin</label><div>${formatDateTime(viaje.fecha_fin)}</div></div>
-                <div><label>Programación ID</label><div>${viaje.programacion_id}</div></div>
+                <div><label>Programación</label><div>${prog.id ?? viaje.programacion_viaje_id ?? '—'}</div></div>
             </div>
             <div class="resumen-novedades">
                 <span class="badge badge-info">Total novedades: ${resumen.total_novedades}</span>
@@ -222,6 +269,7 @@ function cerrarSeguimiento() {
 }
 
 function cerrarModal(id) { document.getElementById(id)?.classList.remove('active'); }
+
 function renderNavUser() {
     const user = UserSession.get();
     const el = document.getElementById('nav-user');

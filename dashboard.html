@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard — LogiTrans Express</title>
     <link rel="stylesheet" href="assets/css/styles.css">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
 </head>
 <body>
 
@@ -115,6 +116,7 @@
 
 <script src="assets/js/config.js"></script>
 <script src="assets/js/utils.js"></script>
+<script src="assets/js/auth.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     requireAuth();
@@ -141,7 +143,13 @@ async function cargarStats() {
             r.success ? (r.data || []).length : '—';
     });
 
-    const vRes = await Http.get(`${API.viajes}/viajes?estado=en_transito`);
+    const [vRes, cRes, veRes, pRes] = await Promise.all([
+        Http.get(`${API.viajes}/viajes?estado=en_transito`),
+        Http.get(`${API.conductores}/conductores`),
+        Http.get(`${API.vehiculos}/vehiculos`),
+        Http.get(`${API.rutas}/programacion`)
+    ]);
+
     if (vRes.success) {
         const viajes = vRes.data || [];
         document.getElementById('stat-viajes').textContent = viajes.length;
@@ -152,18 +160,47 @@ async function cargarStats() {
             return;
         }
 
-        tbody.innerHTML = viajes.map(v => `
-            <tr>
-                <td>${v.id}</td>
-                <td>${v.conductor_id}</td>
-                <td>${v.vehiculo_id}</td>
-                <td>${estadoBadge(v.estado)}</td>
-                <td>${formatDateTime(v.fecha_inicio)}</td>
-                <td>
-                    <a href="viajes.html" class="btn btn-sm btn-info">Ver detalle</a>
-                </td>
-            </tr>
-        `).join('');
+        // Mapas de lookup
+        const conductoresMap = {};
+        
+        if (cRes.success) {
+            (cRes.data || []).forEach(c => {
+                conductoresMap[c.id] = `${c.nombres} ${c.apellidos}`;
+            });
+        }
+
+        const vehiculosMap = {};
+        if (veRes.success) {
+            (veRes.data || []).forEach(v => {
+                vehiculosMap[v.id] = `${v.placa} — ${v.marca}`;
+            });
+        }
+
+        const programacionesMap = {};
+        if (pRes.success) {
+            (pRes.data || []).forEach(p => {
+                programacionesMap[p.id] = p;  // guardamos el objeto completo
+            });
+        }
+                
+        tbody.innerHTML = viajes.map(v => {
+            const prog       = programacionesMap[v.programacion_viaje_id] ?? {};              
+            const conductor  = conductoresMap[prog.conductor_id]  ?? `Conductor #${prog.conductor_id  ?? '?'}`;
+            const vehiculo   = vehiculosMap[prog.vehiculo_id]     ?? `Vehículo #${prog.vehiculo_id    ?? '?'}`;
+
+            return `
+                <tr>
+                    <td>${v.id}</td>
+                    <td>${conductor}</td>
+                    <td>${vehiculo}</td>
+                    <td>${estadoBadge(v.estado)}</td>
+                    <td>${formatDateTime(v.fecha_inicio)}</td>
+                    <td>
+                        <a href="viajes.html" class="btn btn-sm btn-info">Ver detalle</a>
+                    </td>
+                </tr>
+            `;
+        }).join('');
     }
 }
 </script>
