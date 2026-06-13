@@ -199,7 +199,7 @@ function llenarSelectores(conductorSeleccionado = null, vehiculoSeleccionado = n
     selRuta.innerHTML = '<option value="">— Seleccionar ruta —</option>' +
         rutasAll.map(r =>
             `<option value="${r.id}" ${r.id === rutaSeleccionada ? 'selected' : ''}>
-                ${r.ciudad_origen} → ${r.ciudad_destino} · ${r.distancia_km} km · ~${r.tiempo_estimado_horas || '?'} h
+                ${r.ciudad_origen} → ${r.ciudad_destino} · ${r.distancia} km · ~${r.tiempo_estimado || '?'} h
             </option>`
         ).join('');
 

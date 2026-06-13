@@ -17,9 +17,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('tab-rutas')?.addEventListener('click', () => mostrarVista('rutas'));
     document.getElementById('tab-prog')?.addEventListener('click',  () => mostrarVista('programacion'));
 
-    document.getElementById('btn-nueva-ruta')?.addEventListener('click', abrirModalNuevaRuta);
+    document.getElementById('btn-nueva')?.addEventListener('click', abrirModalNuevaRuta);
     document.getElementById('form-ruta')?.addEventListener('submit', guardarRuta);
-    document.getElementById('btn-cancelar-ruta')?.addEventListener('click', () => cerrarModal('modal-ruta'));
+    document.getElementById('btn-cancelar')?.addEventListener('click', () => cerrarModal('modal-ruta'));
 
     document.getElementById('btn-nueva-prog')?.addEventListener('click', abrirModalNuevaProg);
     document.getElementById('form-prog')?.addEventListener('submit', guardarProgramacion);
@@ -107,8 +107,8 @@ function renderTablaRutas(datos) {
             <td>${r.id}</td>
             <td><strong>${r.ciudad_origen}</strong></td>
             <td><strong>${r.ciudad_destino}</strong></td>
-            <td>${r.distancia_km} km</td>
-            <td>${r.tiempo_estimado_horas ? r.tiempo_estimado_horas + ' h' : '—'}</td>
+            <td>${r.distancia} km</td>
+            <td>${r.tiempo_estimado ? r.tiempo_estimado + ' h' : '—'}</td>
             <td class="actions">
                 <button class="btn btn-sm btn-primary" onclick="editarRuta(${r.id})">Editar</button>
                 <button class="btn btn-sm btn-danger" onclick="eliminarRuta(${r.id})">Eliminar</button>
@@ -128,7 +128,7 @@ function filtrarRutas(texto) {
 
 function abrirModalNuevaRuta() {
     editandoRutaId = null;
-    document.getElementById('titulo-modal-ruta').textContent = 'Nueva Ruta';
+    document.getElementById('modal-titulo').textContent = 'Nueva Ruta';
     document.getElementById('form-ruta').reset();
     abrirModal('modal-ruta');
 }
@@ -139,13 +139,13 @@ async function editarRuta(id) {
 
     const r = res.data;
     editandoRutaId = id;
-    document.getElementById('titulo-modal-ruta').textContent = 'Editar Ruta';
+    document.getElementById('modal-titulo').textContent = 'Editar Ruta';
 
     document.getElementById('f-origen').value    = r.ciudad_origen  || '';
     document.getElementById('f-destino').value   = r.ciudad_destino || '';
-    document.getElementById('f-distancia').value = r.distancia_km   || '';
-    document.getElementById('f-tiempo').value    = r.tiempo_estimado_horas || '';
-    document.getElementById('f-obs-ruta').value  = r.observaciones  || '';
+    document.getElementById('f-distancia').value = r.distancia   || '';
+    document.getElementById('f-tiempo').value    = r.tiempo_estimado || '';
+    document.getElementById('f-observaciones').value  = r.observaciones  || '';
 
     abrirModal('modal-ruta');
 }
@@ -162,12 +162,12 @@ async function guardarRuta(e) {
     const body = {
         ciudad_origen:         document.getElementById('f-origen').value.trim(),
         ciudad_destino:        document.getElementById('f-destino').value.trim(),
-        distancia_km:          distancia,
-        tiempo_estimado_horas: parseFloat(document.getElementById('f-tiempo').value) || 0,
-        observaciones:         document.getElementById('f-obs-ruta').value.trim(),
+        distancia:             distancia,
+        tiempo_estimado:       parseFloat(document.getElementById('f-tiempo').value) || 0,
+        observaciones:         document.getElementById('f-observaciones').value.trim(),
     };
 
-    const btn = document.getElementById('btn-guardar-ruta');
+    const btn = document.getElementById('btn-guardar');
     btn.disabled = true;
 
     const res = editandoRutaId

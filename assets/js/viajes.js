@@ -80,6 +80,7 @@ function renderTabla(datos) {
 
     tbody.innerHTML = datos.map(v => {
         const { prog, conductor, vehiculo } = resolverNombres(v);
+        console.log(prog)
         return `
             <tr>
                 <td>${v.id}</td>
@@ -87,8 +88,8 @@ function renderTabla(datos) {
                 <td>${conductor}</td>
                 <td>${vehiculo}</td>
                 <td>${estadoBadge(v.estado)}</td>
-                <td>${formatDateTime(v.fecha_inicio)}</td>
-                <td>${formatDateTime(v.fecha_fin)}</td>
+                <td>${formatDateTime(prog.fecha_salida)}</td>
+                <td>${formatDateTime(prog.fecha_estimada_llegada)}</td>
                 <td class="actions">${accionesViaje(v)}</td>
             </tr>
         `;
@@ -198,6 +199,7 @@ async function guardarNovedad(e) {
     btn.disabled = true;
 
     const res = await Http.post(`${API.viajes}/viajes/${viajeNovedad}/novedades`, body);
+    
     btn.disabled = false;
 
     if (res.success) {
@@ -211,15 +213,14 @@ async function guardarNovedad(e) {
 
 async function verSeguimiento(id) {
     const res = await Http.get(`${API.viajes}/viajes/${id}/seguimiento`);
-
+    
     if (!res.success) {
         showAlert(res.message, 'error');
         return;
     }
 
     const { viaje, novedades, resumen } = res.data;
-    const { prog, conductor, vehiculo } = resolverNombres(viaje);
-
+    const { prog, conductor, vehiculo } = resolverNombres(viaje);    
     const panel = document.getElementById('panel-seguimiento');
     if (!panel) return;
 
@@ -246,14 +247,11 @@ async function verSeguimiento(id) {
         <h4>Historial de novedades</h4>
         ${novedades.length ? `
             <table class="table">
-                <thead><tr><th>Tipo</th><th>Descripción</th><th>Registrado por</th><th>Fecha</th></tr></thead>
+                <thead><tr><th>Descripción</th></tr></thead>
                 <tbody>
                     ${novedades.map(n => `
                         <tr>
-                            <td>${estadoBadge(n.tipo)}</td>
-                            <td>${n.descripcion}</td>
-                            <td>${n.registrado_por}</td>
-                            <td>${formatDateTime(n.created_at)}</td>
+                            <td>${n}</td>
                         </tr>
                     `).join('')}
                 </tbody>

@@ -48,12 +48,12 @@ function renderTabla(datos) {
         tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No hay vehículos registrados.</td></tr>';
         return;
     }
-
+    
     tbody.innerHTML = datos.map(v => `
         <tr>
             <td>${v.id}</td>
             <td><strong>${v.placa}</strong></td>
-            <td>${v.tipo}</td>
+            <td>${v.tipo_vehiculo}</td>
             <td>${v.marca} ${v.modelo}</td>
             <td>${v.capacidad_carga} ton</td>
             <td>${estadoBadge(v.estado)}</td>
@@ -72,7 +72,7 @@ function filtrarVehiculos(texto) {
         v.placa.toLowerCase().includes(t) ||
         v.marca.toLowerCase().includes(t) ||
         v.modelo.toLowerCase().includes(t) ||
-        v.tipo.toLowerCase().includes(t)
+        v.tipo_vehiculo.toLowerCase().includes(t)
     );
     renderTabla(filtrados);
 }
@@ -93,7 +93,7 @@ async function editarVehiculo(id) {
     document.getElementById('modal-titulo').textContent = 'Editar Vehículo';
 
     document.getElementById('f-placa').value    = v.placa    || '';
-    document.getElementById('f-tipo').value     = v.tipo     || '';
+    document.getElementById('f-tipo').value     = v.tipo_vehiculo     || '';
     document.getElementById('f-capacidad').value= v.capacidad_carga || '';
     document.getElementById('f-marca').value    = v.marca    || '';
     document.getElementById('f-modelo').value   = v.modelo   || '';
